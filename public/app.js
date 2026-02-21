@@ -542,62 +542,35 @@ function AppleWatchSetup() {
 
       {open && (
         <div className="mt-4 space-y-4 text-xs text-slate-400 leading-relaxed">
-          <p>Triggers when you dismiss your alarm. Checks every 5 min until Whoop finishes processing, then sends one notification to your Watch — no duplicates.</p>
+          <p>Sends your morning brief to your Apple Watch every day at a set time — no app needed.</p>
 
           <div className="space-y-2">
             <p className="text-slate-300 font-medium">Step 1 — Build the shortcut</p>
-            <p>Open <span className="text-slate-300">Shortcuts</span> → tap <span className="text-slate-300">+</span> → name it <span className="text-slate-300">"Morning Brief"</span>. Add these actions in order:</p>
-
+            <p>Open <span className="text-slate-300">Shortcuts</span> → tap <span className="text-slate-300">+</span> → name it <span className="text-slate-300">"Morning Brief"</span>. Add two actions:</p>
             <div className="space-y-2 pl-1">
-              <div className="bg-slate-800/60 rounded-lg p-2.5">
-                <p className="text-slate-300 font-medium mb-0.5">1. Get File</p>
-                <p>File path: <span className="text-blue-400">Shortcuts/morning-notified.txt</span></p>
-                <p className="text-slate-500">Turn off "Error if not found"</p>
-              </div>
-
-              <div className="bg-slate-800/60 rounded-lg p-2.5">
-                <p className="text-slate-300 font-medium mb-0.5">2. Format Date</p>
-                <p>Date: <span className="text-slate-300">Current Date</span> · Format: <span className="text-blue-400">yyyy-MM-dd</span></p>
-                <p className="text-slate-500">Save result as variable <span className="text-slate-300">"Today"</span></p>
-              </div>
-
-              <div className="bg-slate-800/60 rounded-lg p-2.5">
-                <p className="text-slate-300 font-medium mb-0.5">3. If — already notified today</p>
-                <p><span className="text-slate-300">File Contents</span> is <span className="text-slate-300">Today</span> → <span className="text-slate-300">Stop Shortcut</span></p>
-              </div>
-
-              <div className="bg-slate-800/60 rounded-lg p-2.5">
-                <p className="text-slate-300 font-medium mb-1">4. Repeat 12 times</p>
-                <p className="text-slate-500 mb-1.5">Inside the repeat:</p>
-                <div className="space-y-1.5 pl-2 border-l border-slate-700">
-                  <p><span className="text-slate-300">a.</span> Get Contents of URL:</p>
-                  <div className="flex items-center gap-2 bg-slate-900/60 rounded px-2 py-1">
-                    <span className="text-blue-400 flex-1 break-all">{readyUrl}</span>
-                    <CopyButton text={readyUrl} />
-                  </div>
-                  <p><span className="text-slate-300">b.</span> Get Dictionary from input → Get Value for key <span className="text-blue-400">ready</span></p>
-                  <p><span className="text-slate-300">c.</span> If Dictionary Value <span className="text-slate-300">is 1</span>:</p>
-                  <div className="pl-3 space-y-1 border-l border-slate-700">
-                    <p>Get Contents of URL:</p>
-                    <div className="flex items-center gap-2 bg-slate-900/60 rounded px-2 py-1">
-                      <span className="text-blue-400 flex-1 break-all">{briefUrl}</span>
-                      <CopyButton text={briefUrl} />
-                    </div>
-                    <p>Show Notification — Body: <span className="text-slate-300">Contents of URL</span></p>
-                    <p>Save File — input: <span className="text-slate-300">Today</span> variable · path: <span className="text-blue-400">Shortcuts/morning-notified.txt</span></p>
-                    <p>Stop Shortcut</p>
-                  </div>
-                  <p><span className="text-slate-300">d.</span> End If</p>
-                  <p><span className="text-slate-300">e.</span> Wait <span className="text-slate-300">5 minutes</span></p>
+              <div className="bg-slate-800/60 rounded-lg p-2.5 space-y-1.5">
+                <p className="text-slate-300 font-medium">1. Get Contents of URL</p>
+                <div className="flex items-center gap-2 bg-slate-900/60 rounded px-2 py-1.5">
+                  <span className="text-blue-400 flex-1 break-all">{briefUrl}</span>
+                  <CopyButton text={briefUrl} />
                 </div>
+              </div>
+              <div className="bg-slate-800/60 rounded-lg p-2.5">
+                <p className="text-slate-300 font-medium">2. Show Notification</p>
+                <p className="mt-0.5">Set Body to <span className="text-slate-300">Contents of URL</span></p>
               </div>
             </div>
           </div>
 
           <div className="space-y-2">
-            <p className="text-slate-300 font-medium">Step 2 — Set the trigger</p>
-            <p>Go to <span className="text-slate-300">Automation</span> tab → <span className="text-slate-300">+</span> → <span className="text-slate-300">Alarm</span> → <span className="text-slate-300">When an alarm stops</span> → run <span className="text-slate-300">Morning Brief</span>.</p>
-            <p className="text-slate-500">Fires when you dismiss your alarm. Checks every 5 min, sends one notification when Whoop is ready. Skips automatically if already notified today.</p>
+            <p className="text-slate-300 font-medium">Step 2 — Set the automation</p>
+            <ol className="list-decimal list-inside space-y-1 pl-1">
+              <li>Go to <span className="text-slate-300">Automation</span> tab → <span className="text-slate-300">+</span></li>
+              <li>Choose <span className="text-slate-300">Time of Day</span></li>
+              <li>Set time to <span className="text-slate-300">~45 min after you usually wake up</span></li>
+              <li>Set to <span className="text-slate-300">Daily</span> → run <span className="text-slate-300">Morning Brief</span></li>
+            </ol>
+            <p className="text-slate-500">The 45-min buffer gives Whoop time to finish processing your sleep. The notification shows on your Apple Watch automatically.</p>
           </div>
         </div>
       )}
