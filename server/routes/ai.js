@@ -136,7 +136,7 @@ router.get('/brief', async (req, res) => {
       `${dot} Recovery ${recoveryScore}% · ${readinessLabel}`,
       `❤️ HRV ${hrv ?? '--'}ms · RHR ${rhr ?? '--'}bpm`,
       `😴 Sleep ${sleepPerf != null ? Math.round(sleepPerf) + '%' : '--'} · Strain ${strain != null ? strain.toFixed(1) : '--'}`,
-      `⚡ Target ${strainTarget}`,
+      `⚡ Strain Target ${strainTarget}`,
       bedTime ? `🛏 Bed ${bedTime}` : null,
     ].filter(Boolean);
 
