@@ -1,0 +1,18 @@
+{
+  "name": "whoop-dashboard",
+  "version": "1.0.0",
+  "description": "Personal morning dashboard powered by Whoop API",
+  "main": "server/index.js",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --env-file=.env --watch server/index.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "express": "^4.19.2",
+    "node-fetch": "^2.7.0"
+  }
+}
