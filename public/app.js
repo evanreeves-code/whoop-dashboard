@@ -182,112 +182,6 @@ function WeeklyChart({ cycles }) {
   );
 }
 
-function SessionLogger() {
-  const [sessions, setSessions] = useState([]);
-  const [form, setForm] = useState({ date: new Date().toISOString().slice(0, 10), type: 'game', duration_minutes: '', notes: '' });
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    fetch('/api/sessions').then(r => r.json()).then(setSessions).catch(() => {});
-  }, []);
-
-  async function submit(e) {
-    e.preventDefault();
-    const res = await fetch('/api/sessions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, duration_minutes: form.duration_minutes ? Number(form.duration_minutes) : null }),
-    });
-    if (res.ok) {
-      const updated = await fetch('/api/sessions').then(r => r.json());
-      setSessions(updated);
-      setForm({ date: new Date().toISOString().slice(0, 10), type: 'game', duration_minutes: '', notes: '' });
-      setOpen(false);
-    }
-  }
-
-  async function deleteSession(id) {
-    await fetch(`/api/sessions/${id}`, { method: 'DELETE' });
-    setSessions(s => s.filter(x => x.id !== id));
-  }
-
-  return (
-    <div className="card rounded-2xl p-4">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-xs text-slate-400 uppercase tracking-wide font-medium">Basketball Sessions</p>
-        <button
-          onClick={() => setOpen(v => !v)}
-          className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded-lg transition-colors"
-        >
-          {open ? 'Cancel' : '+ Log'}
-        </button>
-      </div>
-
-      {open && (
-        <form onSubmit={submit} className="mb-4 space-y-2">
-          <div className="grid grid-cols-2 gap-2">
-            <input
-              type="date"
-              value={form.date}
-              onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-              className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white"
-              required
-            />
-            <select
-              value={form.type}
-              onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
-              className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white"
-            >
-              <option value="game">Game</option>
-              <option value="practice">Practice</option>
-            </select>
-          </div>
-          <input
-            type="number"
-            placeholder="Duration (minutes)"
-            value={form.duration_minutes}
-            onChange={e => setForm(f => ({ ...f, duration_minutes: e.target.value }))}
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500"
-          />
-          <textarea
-            placeholder="Notes (optional)"
-            value={form.notes}
-            onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 resize-none"
-            rows={2}
-          />
-          <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-2 rounded-lg text-sm transition-colors">
-            Save Session
-          </button>
-        </form>
-      )}
-
-      {sessions.length === 0 ? (
-        <p className="text-sm text-slate-500 text-center py-4">No sessions logged yet</p>
-      ) : (
-        <div className="space-y-2">
-          {sessions.map(s => (
-            <div key={s.id} className="flex items-center justify-between bg-slate-800/50 rounded-xl px-3 py-2">
-              <div>
-                <span className={`text-xs font-medium px-2 py-0.5 rounded-full mr-2 ${s.type === 'game' ? 'bg-orange-900/50 text-orange-300' : 'bg-blue-900/50 text-blue-300'}`}>
-                  {s.type}
-                </span>
-                <span className="text-sm text-slate-300">{s.date}</span>
-                {s.duration_minutes && <span className="text-xs text-slate-500 ml-2">{s.duration_minutes}m</span>}
-                {s.notes && <p className="text-xs text-slate-500 mt-1">{s.notes}</p>}
-              </div>
-              <button onClick={() => deleteSession(s.id)} className="text-slate-600 hover:text-red-400 transition-colors ml-2">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ─── Brief Tab Components ──────────────────────────────────────────────────
 
@@ -578,8 +472,17 @@ function Dashboard({ wakeTime }) {
   const recoveryScore = recovery?.score?.recovery_score ?? 0;
   const hrv = recovery?.score?.hrv_rmssd_milli ? Math.round(recovery.score.hrv_rmssd_milli) : null;
   const rhr = recovery?.score?.resting_heart_rate ?? null;
+  const spo2 = recovery?.score?.spo2_percentage != null ? recovery.score.spo2_percentage.toFixed(1) : null;
   const sleepPerf = sleep?.score?.sleep_performance_percentage ?? null;
+  const sleepEfficiency = sleep?.score?.sleep_efficiency_percentage ?? null;
+  const respiratoryRate = sleep?.score?.respiratory_rate != null ? sleep.score.respiratory_rate.toFixed(1) : null;
   const sleepNeed = sleep?.score?.sleep_needed?.baseline_milli ?? null;
+  const stages = sleep?.score?.stage_summary ?? null;
+  const totalSleepMs = stages
+    ? (stages.total_light_sleep_time_milli ?? 0) + (stages.total_slow_wave_sleep_time_milli ?? 0) + (stages.total_rem_sleep_time_milli ?? 0)
+    : null;
+  const remMs = stages?.total_rem_sleep_time_milli ?? null;
+  const deepMs = stages?.total_slow_wave_sleep_time_milli ?? null;
   const strain = cycle?.score?.strain ?? null;
   const bedTime = sleepRecommendation(sleepNeed, wakeTime);
 
@@ -587,7 +490,6 @@ function Dashboard({ wakeTime }) {
     { id: 'today', label: 'Today' },
     { id: 'brief', label: 'Brief' },
     { id: 'weekly', label: 'Week' },
-    { id: 'sessions', label: 'Log' },
   ];
 
   return (
@@ -621,14 +523,47 @@ function Dashboard({ wakeTime }) {
           <div className="grid grid-cols-2 gap-3">
             <MetricCard label="HRV" value={hrv ? `${hrv} ms` : '--'} sub="Heart rate variability" />
             <MetricCard label="Resting HR" value={rhr ? `${fmt(rhr)} bpm` : '--'} sub="Last night" />
-            <MetricCard label="Sleep" value={sleepPerf ? `${fmt(sleepPerf)}%` : '--'} sub="Performance" />
-            <MetricCard label="Yesterday Strain" value={strain ? strain.toFixed(1) : '--'} sub="out of 21" />
+            <MetricCard label="SpO2" value={spo2 ? `${spo2}%` : '--'} sub="Blood oxygen" />
+            <MetricCard label="Resp. Rate" value={respiratoryRate ?? '--'} sub="Breaths / min" />
           </div>
 
           <div className="card rounded-2xl p-4">
-            <p className="text-xs text-slate-400 uppercase tracking-wide font-medium mb-1">Strain Target Today</p>
-            <p className="text-3xl font-bold text-orange-400">{strainTarget(recoveryScore)}</p>
-            <p className="text-xs text-slate-500 mt-1">Based on {recoveryScore}% recovery</p>
+            <p className="text-xs text-slate-400 uppercase tracking-wide font-medium mb-3">Sleep</p>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div>
+                <p className="text-lg font-bold text-white">{totalSleepMs ? formatDuration(totalSleepMs) : '--'}</p>
+                <p className="text-xs text-slate-500 mt-0.5">Total</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold text-white">{sleepPerf ? `${fmt(sleepPerf)}%` : '--'}</p>
+                <p className="text-xs text-slate-500 mt-0.5">Performance</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold text-white">{sleepEfficiency ? `${fmt(sleepEfficiency)}%` : '--'}</p>
+                <p className="text-xs text-slate-500 mt-0.5">Efficiency</p>
+              </div>
+            </div>
+            {(remMs || deepMs) && (
+              <div className="grid grid-cols-2 gap-2 text-center mt-3 pt-3 border-t border-slate-700/50">
+                <div>
+                  <p className="text-base font-bold text-blue-400">{remMs ? formatDuration(remMs) : '--'}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">REM</p>
+                </div>
+                <div>
+                  <p className="text-base font-bold text-purple-400">{deepMs ? formatDuration(deepMs) : '--'}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Deep</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="card rounded-2xl p-4">
+              <p className="text-xs text-slate-400 uppercase tracking-wide font-medium mb-1">Strain Target</p>
+              <p className="text-3xl font-bold text-orange-400">{strainTarget(recoveryScore)}</p>
+              <p className="text-xs text-slate-500 mt-1">{recoveryScore}% recovery</p>
+            </div>
+            <MetricCard label="Yesterday Strain" value={strain ? strain.toFixed(1) : '--'} sub="out of 21" />
           </div>
 
           {bedTime && (
@@ -669,7 +604,6 @@ function Dashboard({ wakeTime }) {
         </div>
       )}
 
-      {tab === 'sessions' && <SessionLogger />}
     </div>
   );
 }
