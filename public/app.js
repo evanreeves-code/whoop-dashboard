@@ -566,11 +566,10 @@ function AppleWatchSetup() {
             <p className="text-slate-300 font-medium">Step 2 — Set the automation</p>
             <ol className="list-decimal list-inside space-y-1 pl-1">
               <li>Go to <span className="text-slate-300">Automation</span> tab → <span className="text-slate-300">+</span></li>
-              <li>Choose <span className="text-slate-300">Time of Day</span></li>
-              <li>Set time to <span className="text-slate-300">~45 min after you usually wake up</span></li>
-              <li>Set to <span className="text-slate-300">Daily</span> → run <span className="text-slate-300">Morning Brief</span></li>
+              <li>Scroll to <span className="text-slate-300">Sleep</span> → tap <span className="text-slate-300">When I Wake Up</span></li>
+              <li>Run <span className="text-slate-300">Morning Brief</span></li>
             </ol>
-            <p className="text-slate-500">The 45-min buffer gives Whoop time to finish processing your sleep. The notification shows on your Apple Watch automatically.</p>
+            <p className="text-slate-500 mt-1">Requires Sleep Focus to be set up with a schedule. Go to <span className="text-slate-300">Settings → Focus → Sleep</span> and set your sleep schedule if you haven't already. Apple Watch will detect when you wake up and trigger the shortcut automatically.</p>
           </div>
         </div>
       )}
