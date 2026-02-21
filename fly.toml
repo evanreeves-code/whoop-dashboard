@@ -1,0 +1,25 @@
+# fly.toml — Fly.io deployment config
+# Replace "whoop-dashboard" with your chosen app name (must be globally unique)
+app = "whoop-dashboard"
+primary_region = "ord"
+
+[build]
+
+[env]
+  PORT = "8080"
+  DB_PATH = "/data/whoop.db"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[mounts]]
+  source = "whoop_data"
+  destination = "/data"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

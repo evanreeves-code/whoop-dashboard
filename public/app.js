@@ -482,6 +482,7 @@ function AiBrief() {
 
 function AppleWatchSetup() {
   const [open, setOpen] = useState(false);
+  const briefUrl = `${window.location.origin}/api/brief`;
 
   return (
     <div className="card rounded-2xl p-4">
@@ -503,24 +504,33 @@ function AppleWatchSetup() {
           <p>Get a morning brief notification on your Apple Watch daily — no app needed.</p>
 
           <div className="space-y-1.5">
-            <p className="text-slate-300 font-medium">1. Find your Mac's local IP</p>
-            <p>System Settings → Wi-Fi → Details → IP Address (e.g. 192.168.1.42)</p>
-          </div>
-
-          <div className="space-y-1.5">
-            <p className="text-slate-300 font-medium">2. Create an iOS Shortcut</p>
+            <p className="text-slate-300 font-medium">1. Create an iOS Shortcut</p>
             <ol className="list-decimal list-inside space-y-1 pl-1">
               <li>Open <span className="text-slate-300">Shortcuts</span> app on iPhone</li>
               <li>Tap <span className="text-slate-300">+</span> → Add Action</li>
               <li>Search for <span className="text-slate-300">"Get Contents of URL"</span></li>
-              <li>Set URL to <span className="text-blue-400 break-all">http://[YOUR-MAC-IP]:3000/api/brief</span></li>
+              <li>Set URL to:</li>
+            </ol>
+            <div className="bg-slate-800 rounded-lg px-3 py-2 mt-1 flex items-center gap-2">
+              <span className="text-blue-400 break-all flex-1">{briefUrl}</span>
+              <button
+                onClick={() => navigator.clipboard.writeText(briefUrl)}
+                className="text-slate-600 hover:text-slate-300 flex-shrink-0 transition-colors"
+                title="Copy URL"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </button>
+            </div>
+            <ol className="list-decimal list-inside space-y-1 pl-1" start="5">
               <li>Add action: <span className="text-slate-300">"Show Notification"</span></li>
-              <li>Set the notification Body to <span className="text-slate-300">Shortcut Input</span> (the result from step 4)</li>
+              <li>Set the notification Body to <span className="text-slate-300">Shortcut Input</span></li>
             </ol>
           </div>
 
           <div className="space-y-1.5">
-            <p className="text-slate-300 font-medium">3. Set up daily automation</p>
+            <p className="text-slate-300 font-medium">2. Set up daily automation</p>
             <ol className="list-decimal list-inside space-y-1 pl-1">
               <li>Go to <span className="text-slate-300">Automation</span> tab in Shortcuts</li>
               <li>Tap <span className="text-slate-300">+</span> → Time of Day</li>
@@ -529,7 +539,7 @@ function AppleWatchSetup() {
             </ol>
           </div>
 
-          <p className="text-slate-500 pt-1">iPhone and Mac must be on the same Wi-Fi. The notification will appear on your Apple Watch automatically.</p>
+          <p className="text-slate-500 pt-1">The notification will appear on your Apple Watch automatically each morning.</p>
         </div>
       )}
     </div>
