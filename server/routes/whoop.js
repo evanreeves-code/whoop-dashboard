@@ -88,4 +88,34 @@ router.get('/weekly', async (req, res) => {
   }
 });
 
+// GET /api/stats — 30-day averages for HRV and recovery
+router.get('/stats', async (req, res) => {
+  try {
+    const token = await getValidToken();
+    if (!token) return res.status(401).json({ error: 'Not authenticated' });
+
+    const data = await whoopGet('/v2/recovery?limit=30', token);
+    const recoveries = data.records ?? [];
+
+    const hrvValues = recoveries
+      .filter(r => r.score?.hrv_rmssd_milli)
+      .map(r => Math.round(r.score.hrv_rmssd_milli));
+
+    const recoveryValues = recoveries
+      .filter(r => r.score?.recovery_score != null)
+      .map(r => r.score.recovery_score);
+
+    const avg = arr => arr.length ? Math.round(arr.reduce((s, v) => s + v, 0) / arr.length) : null;
+
+    res.json({
+      avgHRV: avg(hrvValues),
+      avgRecovery: avg(recoveryValues),
+      dataPoints: recoveries.length,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

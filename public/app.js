@@ -87,8 +87,12 @@ function ConnectScreen() {
   );
 }
 
-function ReadinessBanner({ score }) {
+function ReadinessBanner({ score, avgRecovery }) {
   const r = readiness(score);
+  const diff = avgRecovery != null ? score - avgRecovery : null;
+  const trendColor = diff == null ? '' : diff > 5 ? 'text-green-400' : diff < -5 ? 'text-red-400' : 'text-slate-400';
+  const trendSymbol = diff == null ? '' : diff > 5 ? '↑' : diff < -5 ? '↓' : '→';
+
   return (
     <div className={`card rounded-2xl p-4 ${r.bg} border ${r.border}`}>
       <div className="flex items-center gap-3">
@@ -96,18 +100,37 @@ function ReadinessBanner({ score }) {
         <div>
           <p className="text-xs text-slate-400 uppercase tracking-wide font-medium">Today's Readiness</p>
           <p className="text-white font-semibold mt-0.5">{r.text}</p>
+          {diff != null && (
+            <p className={`text-xs mt-0.5 ${trendColor}`}>
+              {diff > 0 ? '+' : ''}{diff}% vs your avg
+            </p>
+          )}
         </div>
-        <div className="ml-auto text-2xl font-bold text-white">{score}%</div>
+        <div className="ml-auto text-right">
+          <span className="text-2xl font-bold text-white">{score}%</span>
+          {trendSymbol && <span className={`text-lg font-bold ml-1 ${trendColor}`}>{trendSymbol}</span>}
+        </div>
       </div>
     </div>
   );
 }
 
-function MetricCard({ label, value, sub }) {
+function TrendArrow({ current, avg, threshold = 5 }) {
+  if (!avg || current == null) return null;
+  const diff = current - avg;
+  if (diff > threshold)  return <span className="text-green-400 text-sm font-bold ml-1">↑</span>;
+  if (diff < -threshold) return <span className="text-red-400 text-sm font-bold ml-1">↓</span>;
+  return <span className="text-slate-500 text-sm ml-1">→</span>;
+}
+
+function MetricCard({ label, value, sub, trend }) {
   return (
     <div className="card rounded-2xl p-4">
       <p className="text-xs text-slate-400 uppercase tracking-wide font-medium mb-1">{label}</p>
-      <p className="text-2xl font-bold text-white">{value}</p>
+      <div className="flex items-baseline">
+        <p className="text-2xl font-bold text-white">{value}</p>
+        {trend}
+      </div>
       {sub && <p className="text-xs text-slate-500 mt-1">{sub}</p>}
     </div>
   );
@@ -442,14 +465,23 @@ function AppleWatchSetup() {
 
 // ─── Dashboard ─────────────────────────────────────────────────────────────
 
-function Dashboard({ wakeTime }) {
+function Dashboard() {
   const [recovery, setRecovery] = useState(null);
   const [sleep, setSleep] = useState(null);
   const [cycle, setCycle] = useState(null);
   const [workouts, setWorkouts] = useState([]);
   const [weekly, setWeekly] = useState([]);
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('today');
+  const [wakeTime, setWakeTime] = useState(() => localStorage.getItem('wake-time') || '08:00');
+  const [editingWake, setEditingWake] = useState(false);
+
+  function saveWakeTime(val) {
+    setWakeTime(val);
+    localStorage.setItem('wake-time', val);
+    setEditingWake(false);
+  }
 
   useEffect(() => {
     Promise.all([
@@ -458,12 +490,14 @@ function Dashboard({ wakeTime }) {
       fetch('/api/cycle').then(r => r.json()),
       fetch('/api/workout').then(r => r.json()),
       fetch('/api/weekly').then(r => r.json()),
-    ]).then(([rec, slp, cyc, wrk, wkl]) => {
+      fetch('/api/stats').then(r => r.json()),
+    ]).then(([rec, slp, cyc, wrk, wkl, st]) => {
       setRecovery(rec);
       setSleep(slp);
       setCycle(cyc);
       setWorkouts(wrk);
       setWeekly(wkl);
+      setStats(st);
     }).catch(console.error).finally(() => setLoading(false));
   }, []);
 
@@ -500,7 +534,26 @@ function Dashboard({ wakeTime }) {
           <h1 className="text-lg font-bold text-white">Good morning</h1>
           <p className="text-xs text-slate-500">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
         </div>
-        <a href="/auth/logout" className="text-xs text-slate-600 hover:text-slate-400 transition-colors">Disconnect</a>
+        <div className="flex items-center gap-3">
+          <div className="text-right">
+            <p className="text-xs text-slate-500">Wake time</p>
+            {editingWake ? (
+              <input
+                type="time"
+                defaultValue={wakeTime}
+                autoFocus
+                onBlur={e => saveWakeTime(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && saveWakeTime(e.target.value)}
+                className="text-xs bg-slate-800 border border-slate-600 rounded px-1.5 py-0.5 text-white w-20"
+              />
+            ) : (
+              <button onClick={() => setEditingWake(true)} className="text-xs text-slate-300 hover:text-white transition-colors">
+                {wakeTime}
+              </button>
+            )}
+          </div>
+          <a href="/auth/logout" className="text-xs text-slate-600 hover:text-slate-400 transition-colors">Disconnect</a>
+        </div>
       </div>
 
       {/* Tab bar */}
@@ -518,10 +571,15 @@ function Dashboard({ wakeTime }) {
 
       {tab === 'today' && (
         <div className="space-y-3">
-          <ReadinessBanner score={recoveryScore} />
+          <ReadinessBanner score={recoveryScore} avgRecovery={stats?.avgRecovery ?? null} />
 
           <div className="grid grid-cols-2 gap-3">
-            <MetricCard label="HRV" value={hrv ? `${hrv} ms` : '--'} sub="Heart rate variability" />
+            <MetricCard
+              label="HRV"
+              value={hrv ? `${hrv} ms` : '--'}
+              sub={stats?.avgHRV && hrv ? `${hrv > stats.avgHRV ? '+' : ''}${hrv - stats.avgHRV}ms vs your avg` : 'Heart rate variability'}
+              trend={<TrendArrow current={hrv} avg={stats?.avgHRV} threshold={5} />}
+            />
             <MetricCard label="Resting HR" value={rhr ? `${fmt(rhr)} bpm` : '--'} sub="Last night" />
             <MetricCard label="SpO2" value={spo2 ? `${spo2}%` : '--'} sub="Blood oxygen" />
             <MetricCard label="Resp. Rate" value={respiratoryRate ?? '--'} sub="Breaths / min" />
@@ -625,7 +683,7 @@ function App() {
 
   if (authState === 'loading') return <Spinner />;
   if (authState === 'unauthenticated') return <ConnectScreen />;
-  return <Dashboard wakeTime="07:00" />;
+  return <Dashboard />;
 }
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
