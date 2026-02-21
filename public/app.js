@@ -509,7 +509,21 @@ function StrengthHistory({ workouts }) {
 
 function AppleWatchSetup() {
   const [open, setOpen] = useState(false);
-  const briefUrl = `${window.location.origin}/api/brief`;
+  const origin = window.location.origin;
+  const readyUrl = `${origin}/api/ready`;
+  const briefUrl = `${origin}/api/brief`;
+
+  function CopyButton({ text }) {
+    const [copied, setCopied] = useState(false);
+    return (
+      <button
+        onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
+        className="text-xs text-slate-500 hover:text-slate-300 flex-shrink-0 transition-colors px-1.5 py-0.5 rounded border border-slate-700 hover:border-slate-500"
+      >
+        {copied ? 'Copied' : 'Copy'}
+      </button>
+    );
+  }
 
   return (
     <div className="card rounded-2xl p-4">
@@ -527,46 +541,64 @@ function AppleWatchSetup() {
       </button>
 
       {open && (
-        <div className="mt-4 space-y-3 text-xs text-slate-400 leading-relaxed">
-          <p>Get a morning brief notification on your Apple Watch daily — no app needed.</p>
+        <div className="mt-4 space-y-4 text-xs text-slate-400 leading-relaxed">
+          <p>Triggers when you dismiss your alarm. Checks every 5 min until Whoop finishes processing, then sends one notification to your Watch — no duplicates.</p>
 
-          <div className="space-y-1.5">
-            <p className="text-slate-300 font-medium">1. Create an iOS Shortcut</p>
-            <ol className="list-decimal list-inside space-y-1 pl-1">
-              <li>Open <span className="text-slate-300">Shortcuts</span> app on iPhone</li>
-              <li>Tap <span className="text-slate-300">+</span> → Add Action</li>
-              <li>Search for <span className="text-slate-300">"Get Contents of URL"</span></li>
-              <li>Set URL to:</li>
-            </ol>
-            <div className="bg-slate-800 rounded-lg px-3 py-2 mt-1 flex items-center gap-2">
-              <span className="text-blue-400 break-all flex-1">{briefUrl}</span>
-              <button
-                onClick={() => navigator.clipboard.writeText(briefUrl)}
-                className="text-slate-600 hover:text-slate-300 flex-shrink-0 transition-colors"
-                title="Copy URL"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-              </button>
+          <div className="space-y-2">
+            <p className="text-slate-300 font-medium">Step 1 — Build the shortcut</p>
+            <p>Open <span className="text-slate-300">Shortcuts</span> → tap <span className="text-slate-300">+</span> → name it <span className="text-slate-300">"Morning Brief"</span>. Add these actions in order:</p>
+
+            <div className="space-y-2 pl-1">
+              <div className="bg-slate-800/60 rounded-lg p-2.5">
+                <p className="text-slate-300 font-medium mb-0.5">1. Get File</p>
+                <p>File path: <span className="text-blue-400">Shortcuts/morning-notified.txt</span></p>
+                <p className="text-slate-500">Turn off "Error if not found"</p>
+              </div>
+
+              <div className="bg-slate-800/60 rounded-lg p-2.5">
+                <p className="text-slate-300 font-medium mb-0.5">2. Format Date</p>
+                <p>Date: <span className="text-slate-300">Current Date</span> · Format: <span className="text-blue-400">yyyy-MM-dd</span></p>
+                <p className="text-slate-500">Save result as variable <span className="text-slate-300">"Today"</span></p>
+              </div>
+
+              <div className="bg-slate-800/60 rounded-lg p-2.5">
+                <p className="text-slate-300 font-medium mb-0.5">3. If — already notified today</p>
+                <p><span className="text-slate-300">File Contents</span> is <span className="text-slate-300">Today</span> → <span className="text-slate-300">Stop Shortcut</span></p>
+              </div>
+
+              <div className="bg-slate-800/60 rounded-lg p-2.5">
+                <p className="text-slate-300 font-medium mb-1">4. Repeat 12 times</p>
+                <p className="text-slate-500 mb-1.5">Inside the repeat:</p>
+                <div className="space-y-1.5 pl-2 border-l border-slate-700">
+                  <p><span className="text-slate-300">a.</span> Get Contents of URL:</p>
+                  <div className="flex items-center gap-2 bg-slate-900/60 rounded px-2 py-1">
+                    <span className="text-blue-400 flex-1 break-all">{readyUrl}</span>
+                    <CopyButton text={readyUrl} />
+                  </div>
+                  <p><span className="text-slate-300">b.</span> Get Dictionary from input → Get Value for key <span className="text-blue-400">ready</span></p>
+                  <p><span className="text-slate-300">c.</span> If Dictionary Value <span className="text-slate-300">is 1</span>:</p>
+                  <div className="pl-3 space-y-1 border-l border-slate-700">
+                    <p>Get Contents of URL:</p>
+                    <div className="flex items-center gap-2 bg-slate-900/60 rounded px-2 py-1">
+                      <span className="text-blue-400 flex-1 break-all">{briefUrl}</span>
+                      <CopyButton text={briefUrl} />
+                    </div>
+                    <p>Show Notification — Body: <span className="text-slate-300">Contents of URL</span></p>
+                    <p>Save File — input: <span className="text-slate-300">Today</span> variable · path: <span className="text-blue-400">Shortcuts/morning-notified.txt</span></p>
+                    <p>Stop Shortcut</p>
+                  </div>
+                  <p><span className="text-slate-300">d.</span> End If</p>
+                  <p><span className="text-slate-300">e.</span> Wait <span className="text-slate-300">5 minutes</span></p>
+                </div>
+              </div>
             </div>
-            <ol className="list-decimal list-inside space-y-1 pl-1" start="5">
-              <li>Add action: <span className="text-slate-300">"Show Notification"</span></li>
-              <li>Set the notification Body to <span className="text-slate-300">Shortcut Input</span></li>
-            </ol>
           </div>
 
-          <div className="space-y-1.5">
-            <p className="text-slate-300 font-medium">2. Set up daily automation</p>
-            <ol className="list-decimal list-inside space-y-1 pl-1">
-              <li>Go to <span className="text-slate-300">Automation</span> tab in Shortcuts</li>
-              <li>Tap <span className="text-slate-300">+</span> → Time of Day</li>
-              <li>Set to <span className="text-slate-300">7:00 AM, Daily</span></li>
-              <li>Add action: Run the shortcut you just made</li>
-            </ol>
+          <div className="space-y-2">
+            <p className="text-slate-300 font-medium">Step 2 — Set the trigger</p>
+            <p>Go to <span className="text-slate-300">Automation</span> tab → <span className="text-slate-300">+</span> → <span className="text-slate-300">Alarm</span> → <span className="text-slate-300">When an alarm stops</span> → run <span className="text-slate-300">Morning Brief</span>.</p>
+            <p className="text-slate-500">Fires when you dismiss your alarm. Checks every 5 min, sends one notification when Whoop is ready. Skips automatically if already notified today.</p>
           </div>
-
-          <p className="text-slate-500 pt-1">The notification will appear on your Apple Watch automatically each morning.</p>
         </div>
       )}
     </div>
