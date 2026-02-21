@@ -8,7 +8,6 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.use('/auth', require('./routes/auth'));
-app.use('/api/sessions', require('./routes/sessions'));
 app.use('/api', require('./routes/ai'));
 app.use('/api', require('./routes/whoop'));
 

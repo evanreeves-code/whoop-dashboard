@@ -88,6 +88,38 @@ router.get('/weekly', async (req, res) => {
   }
 });
 
+// GET /api/ready — returns true once Whoop has processed today's recovery score
+router.get('/ready', async (req, res) => {
+  try {
+    const token = await getValidToken();
+    if (!token) return res.json({ ready: false });
+    const data = await whoopGet('/v2/recovery?limit=1', token);
+    const score = data.records?.[0]?.score?.recovery_score;
+    res.json({ ready: score != null && score > 0 });
+  } catch {
+    res.json({ ready: false });
+  }
+});
+
+// GET /api/strength — recent strength training sessions from Whoop
+router.get('/strength', async (req, res) => {
+  try {
+    const token = await getValidToken();
+    if (!token) return res.status(401).json({ error: 'Not authenticated' });
+
+    const data = await whoopGet('/v2/activity/workout?limit=20', token);
+    const all = data.records ?? [];
+
+    const keywords = ['weight', 'strength', 'power', 'functional', 'crossfit', 'resistance', 'lift'];
+    const strength = all.filter(w => keywords.some(k => (w.sport_name || '').toLowerCase().includes(k)));
+
+    res.json(strength.length > 0 ? strength : all.slice(0, 6));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/stats — 30-day averages for HRV and recovery
 router.get('/stats', async (req, res) => {
   try {

@@ -287,4 +287,89 @@ Be direct, personal, and reference actual numbers.`;
   }
 });
 
+// POST /api/ai-lift — streaming upper/lower split recommendation based on recovery + Whoop workout history
+router.post('/ai-lift', async (req, res) => {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set — add it to your environment variables.' });
+  }
+
+  try {
+    const token = await getValidToken();
+    if (!token) return res.status(401).json({ error: 'Not authenticated' });
+
+    const [recoveryData, sleepData, workoutData] = await Promise.all([
+      whoopGet('/v2/recovery?limit=14', token),
+      whoopGet('/v2/activity/sleep?limit=1', token),
+      whoopGet('/v2/activity/workout?limit=14', token),
+    ]);
+
+    const recoveries = recoveryData.records ?? [];
+    const todayRecovery = recoveries[0];
+    const sleep = sleepData.records?.[0];
+    const workouts = workoutData.records ?? [];
+
+    const recoveryScore = todayRecovery?.score?.recovery_score ?? 0;
+    const hrv = todayRecovery?.score?.hrv_rmssd_milli ? Math.round(todayRecovery.score.hrv_rmssd_milli) : null;
+    const sleepPerf = sleep?.score?.sleep_performance_percentage ?? null;
+
+    const hrvValues = recoveries.filter(r => r.score?.hrv_rmssd_milli).map(r => Math.round(r.score.hrv_rmssd_milli));
+    const avgHRV = hrvValues.length > 1 ? Math.round(hrvValues.slice(1).reduce((s, v) => s + v, 0) / (hrvValues.length - 1)) : null;
+    const hrvDiff = hrv && avgHRV ? hrv - avgHRV : null;
+
+    let readinessLabel;
+    if (recoveryScore >= 67)      readinessLabel = 'Green (well-recovered)';
+    else if (recoveryScore >= 34) readinessLabel = 'Yellow (moderate)';
+    else                          readinessLabel = 'Red (under-recovered)';
+
+    const recentSessions = workouts.slice(0, 10).map(w => {
+      const date = w.start?.slice(0, 10);
+      const name = w.sport_name || `Sport ${w.sport_id}`;
+      const strain = w.score?.strain != null ? w.score.strain.toFixed(1) : null;
+      const mins = w.end && w.start ? Math.round((new Date(w.end) - new Date(w.start)) / 60000) : null;
+      return `${date}: ${name}${strain ? ` (strain ${strain})` : ''}${mins ? ` — ${mins}min` : ''}`;
+    }).join('\n');
+
+    const prompt = `You are a strength coach for an athlete following an upper/lower split.
+
+Today's Recovery:
+- Recovery: ${recoveryScore}% — ${readinessLabel}
+- HRV: ${hrv ?? 'unknown'}ms${hrvDiff != null ? ` (${hrvDiff > 0 ? '+' : ''}${hrvDiff}ms vs 14-day avg)` : ''}
+- Sleep: ${sleepPerf != null ? Math.round(sleepPerf) + '%' : 'unknown'}
+
+Recent training (last 14 days):
+${recentSessions || '(no recent sessions logged)'}
+
+Provide (under 150 words):
+1. **Today**: Upper A / Upper B / Lower A / Lower B / Rest / Active Recovery — one sentence reason tied to their numbers and training frequency
+2. **Intensity**: Heavy (85-90%) / Moderate (75-80%) / Light (60-70%)
+3. **Key movements**: 4-5 exercises with sets × reps (e.g. "Bench Press: 4×5")
+4. One brief coaching note
+
+Upper A = horizontal push/pull. Upper B = vertical push/pull. Lower A = squat-focused. Lower B = hinge-focused.
+Weight in lbs. Be specific to their recovery numbers.`;
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const stream = client.messages.stream({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 350,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    for await (const text of stream.textStream) {
+      res.write(`data: ${JSON.stringify({ text })}\n\n`);
+    }
+
+    res.write('data: [DONE]\n\n');
+    res.end();
+  } catch (err) {
+    console.error(err);
+    res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+    res.end();
+  }
+});
+
 module.exports = router;

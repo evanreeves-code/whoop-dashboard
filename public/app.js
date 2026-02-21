@@ -397,6 +397,116 @@ function AiBrief() {
   );
 }
 
+function AiLift() {
+  const [text, setText] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [hasGenerated, setHasGenerated] = useState(false);
+
+  async function generate() {
+    setLoading(true);
+    setText('');
+    setHasGenerated(true);
+
+    try {
+      const res = await fetch('/api/ai-lift', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        setText(err.error || 'Something went wrong.');
+        setLoading(false);
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') break;
+          try {
+            const { text: t, error } = JSON.parse(data);
+            if (error) { setText(error); break; }
+            if (t) setText(prev => prev + t);
+          } catch {}
+        }
+      }
+    } catch (err) {
+      setText(`Error: ${err.message}`);
+    }
+
+    setLoading(false);
+  }
+
+  return (
+    <div className="card rounded-2xl p-4">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs text-slate-400 uppercase tracking-wide font-medium">Today's Workout</p>
+        <button
+          onClick={generate}
+          disabled={loading}
+          className="text-xs bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white px-3 py-1 rounded-lg transition-colors"
+        >
+          {loading ? 'Loading...' : hasGenerated ? 'Regenerate' : 'Generate'}
+        </button>
+      </div>
+
+      {!hasGenerated && (
+        <p className="text-sm text-slate-500 text-center py-3">Tap Generate for an AI workout based on your recovery</p>
+      )}
+
+      {loading && !text && (
+        <div className="flex items-center gap-2 py-2">
+          <div className="spinner w-4 h-4 rounded-full border-2 border-slate-700 border-t-orange-400" />
+          <span className="text-xs text-slate-500">Analyzing recovery + training history...</span>
+        </div>
+      )}
+
+      {text && <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">{text}</p>}
+    </div>
+  );
+}
+
+function StrengthHistory({ workouts }) {
+  if (!workouts?.length) return null;
+
+  const keywords = ['weight', 'strength', 'power', 'functional', 'crossfit', 'resistance', 'lift'];
+  const strength = workouts.filter(w => keywords.some(k => (w.sport_name || '').toLowerCase().includes(k)));
+  const sessions = strength.length > 0 ? strength : workouts;
+
+  return (
+    <div className="card rounded-2xl p-4">
+      <p className="text-xs text-slate-400 uppercase tracking-wide font-medium mb-3">Recent Sessions</p>
+      <div className="space-y-2">
+        {sessions.slice(0, 6).map(w => {
+          const date = w.start ? new Date(w.start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '--';
+          const mins = w.end && w.start ? Math.round((new Date(w.end) - new Date(w.start)) / 60000) : null;
+          const strain = w.score?.strain?.toFixed(1);
+          return (
+            <div key={w.id} className="flex items-center justify-between">
+              <div>
+                <span className="text-sm text-slate-300">{w.sport_name || `Sport ${w.sport_id}`}</span>
+                <span className="text-xs text-slate-500 ml-2">{date}</span>
+              </div>
+              <div className="text-right">
+                {strain && <span className="text-xs text-orange-400 font-medium">{strain} strain</span>}
+                {mins && <span className="text-xs text-slate-500 ml-2">{mins}m</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function AppleWatchSetup() {
   const [open, setOpen] = useState(false);
   const briefUrl = `${window.location.origin}/api/brief`;
@@ -472,6 +582,7 @@ function Dashboard() {
   const [workouts, setWorkouts] = useState([]);
   const [weekly, setWeekly] = useState([]);
   const [stats, setStats] = useState(null);
+  const [strengthWorkouts, setStrengthWorkouts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('today');
   const wakeTime = '08:00';
@@ -484,13 +595,15 @@ function Dashboard() {
       fetch('/api/workout').then(r => r.json()),
       fetch('/api/weekly').then(r => r.json()),
       fetch('/api/stats').then(r => r.json()),
-    ]).then(([rec, slp, cyc, wrk, wkl, st]) => {
+      fetch('/api/strength').then(r => r.json()),
+    ]).then(([rec, slp, cyc, wrk, wkl, st, sw]) => {
       setRecovery(rec);
       setSleep(slp);
       setCycle(cyc);
       setWorkouts(wrk);
       setWeekly(wkl);
       setStats(st);
+      setStrengthWorkouts(sw);
     }).catch(console.error).finally(() => setLoading(false));
   }, []);
 
@@ -515,6 +628,7 @@ function Dashboard() {
 
   const tabs = [
     { id: 'today', label: 'Today' },
+    { id: 'lift', label: 'Lift' },
     { id: 'brief', label: 'Brief' },
     { id: 'weekly', label: 'Week' },
   ];
@@ -619,6 +733,13 @@ function Dashboard() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {tab === 'lift' && (
+        <div className="space-y-3">
+          <AiLift />
+          <StrengthHistory workouts={strengthWorkouts} />
         </div>
       )}
 
