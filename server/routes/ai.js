@@ -124,21 +124,20 @@ router.get('/brief', async (req, res) => {
     const strainTarget  = (recoveryScore * 0.21).toFixed(1);
     const bedTime       = calcBedtime(sleep?.score?.sleep_needed?.baseline_milli);
 
-    let readinessLabel;
-    if (recoveryScore >= 67)      readinessLabel = 'Green — go hard today';
-    else if (recoveryScore >= 34) readinessLabel = 'Yellow — moderate effort';
-    else                          readinessLabel = 'Red — take it easy';
+    let dot, readinessLabel;
+    if (recoveryScore >= 67)      { dot = '🟢'; readinessLabel = 'Go hard'; }
+    else if (recoveryScore >= 34) { dot = '🟡'; readinessLabel = 'Moderate'; }
+    else                          { dot = '🔴'; readinessLabel = 'Take it easy'; }
 
-    const day = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    const day = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
     const lines = [
-      `Morning Brief — ${day}`,
-      '',
-      `Recovery: ${recoveryScore}% (${readinessLabel})`,
-      `HRV: ${hrv ?? '--'}ms  |  Resting HR: ${rhr ?? '--'} bpm`,
-      `Sleep: ${sleepPerf != null ? Math.round(sleepPerf) + '%' : '--'}  |  Yesterday Strain: ${strain != null ? strain.toFixed(1) : '--'}`,
-      `Strain Target Today: ${strainTarget}`,
-      bedTime ? `Bedtime Tonight: ${bedTime}` : null,
+      `${day}`,
+      `${dot} Recovery ${recoveryScore}% · ${readinessLabel}`,
+      `❤️ HRV ${hrv ?? '--'}ms · RHR ${rhr ?? '--'}bpm`,
+      `😴 Sleep ${sleepPerf != null ? Math.round(sleepPerf) + '%' : '--'} · Strain ${strain != null ? strain.toFixed(1) : '--'}`,
+      `⚡ Target ${strainTarget}`,
+      bedTime ? `🛏 Bed ${bedTime}` : null,
     ].filter(Boolean);
 
     res.type('text/plain').send(lines.join('\n'));
