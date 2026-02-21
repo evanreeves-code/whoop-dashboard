@@ -310,169 +310,6 @@ function RoutineChecklist() {
   );
 }
 
-function AiBrief() {
-  const [text, setText] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [hasGenerated, setHasGenerated] = useState(false);
-
-  async function generate() {
-    const routine = loadRoutine().map(i => i.text);
-
-    setLoading(true);
-    setText('');
-    setHasGenerated(true);
-
-    try {
-      const res = await fetch('/api/ai-suggest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ routine }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: res.statusText }));
-        setText(err.error || 'Something went wrong.');
-        setLoading(false);
-        return;
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() ?? '';
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const data = line.slice(6).trim();
-          if (data === '[DONE]') break;
-          try {
-            const { text: t, error } = JSON.parse(data);
-            if (error) { setText(error); break; }
-            if (t) setText(prev => prev + t);
-          } catch {}
-        }
-      }
-    } catch (err) {
-      setText(`Error: ${err.message}`);
-    }
-
-    setLoading(false);
-  }
-
-  return (
-    <div className="card rounded-2xl p-4">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-xs text-slate-400 uppercase tracking-wide font-medium">AI Morning Brief</p>
-        <button
-          onClick={generate}
-          disabled={loading}
-          className="text-xs bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white px-3 py-1 rounded-lg transition-colors"
-        >
-          {loading ? 'Generating...' : hasGenerated ? 'Regenerate' : 'Generate'}
-        </button>
-      </div>
-
-      {!hasGenerated && (
-        <p className="text-sm text-slate-500 text-center py-3">Tap Generate for your personalized AI brief</p>
-      )}
-
-      {loading && !text && (
-        <div className="flex items-center gap-2 py-2">
-          <div className="spinner w-4 h-4 rounded-full border-2 border-slate-700 border-t-purple-400" />
-          <span className="text-xs text-slate-500">Analyzing your data...</span>
-        </div>
-      )}
-
-      {text && (
-        <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">{text}</p>
-      )}
-    </div>
-  );
-}
-
-function AiLift() {
-  const [text, setText] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [hasGenerated, setHasGenerated] = useState(false);
-
-  async function generate() {
-    setLoading(true);
-    setText('');
-    setHasGenerated(true);
-
-    try {
-      const res = await fetch('/api/ai-lift', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: res.statusText }));
-        setText(err.error || 'Something went wrong.');
-        setLoading(false);
-        return;
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() ?? '';
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const data = line.slice(6).trim();
-          if (data === '[DONE]') break;
-          try {
-            const { text: t, error } = JSON.parse(data);
-            if (error) { setText(error); break; }
-            if (t) setText(prev => prev + t);
-          } catch {}
-        }
-      }
-    } catch (err) {
-      setText(`Error: ${err.message}`);
-    }
-
-    setLoading(false);
-  }
-
-  return (
-    <div className="card rounded-2xl p-4">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-xs text-slate-400 uppercase tracking-wide font-medium">Today's Workout</p>
-        <button
-          onClick={generate}
-          disabled={loading}
-          className="text-xs bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white px-3 py-1 rounded-lg transition-colors"
-        >
-          {loading ? 'Loading...' : hasGenerated ? 'Regenerate' : 'Generate'}
-        </button>
-      </div>
-
-      {!hasGenerated && (
-        <p className="text-sm text-slate-500 text-center py-3">Tap Generate for an AI workout based on your recovery</p>
-      )}
-
-      {loading && !text && (
-        <div className="flex items-center gap-2 py-2">
-          <div className="spinner w-4 h-4 rounded-full border-2 border-slate-700 border-t-orange-400" />
-          <span className="text-xs text-slate-500">Analyzing recovery + training history...</span>
-        </div>
-      )}
-
-      {text && <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">{text}</p>}
-    </div>
-  );
-}
 
 function StrengthHistory({ workouts }) {
   if (!workouts?.length) return null;
@@ -742,14 +579,12 @@ function Dashboard() {
 
       {tab === 'lift' && (
         <div className="space-y-3">
-          <AiLift />
           <StrengthHistory workouts={strengthWorkouts} />
         </div>
       )}
 
       {tab === 'brief' && (
         <div className="space-y-3">
-          <AiBrief />
           <RoutineChecklist />
           <AppleWatchSetup />
         </div>
