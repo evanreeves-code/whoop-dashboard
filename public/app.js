@@ -474,14 +474,7 @@ function Dashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('today');
-  const [wakeTime, setWakeTime] = useState(() => localStorage.getItem('wake-time') || '08:00');
-  const [editingWake, setEditingWake] = useState(false);
-
-  function saveWakeTime(val) {
-    setWakeTime(val);
-    localStorage.setItem('wake-time', val);
-    setEditingWake(false);
-  }
+  const wakeTime = '08:00';
 
   useEffect(() => {
     Promise.all([
@@ -534,26 +527,7 @@ function Dashboard() {
           <h1 className="text-lg font-bold text-white">Good morning</h1>
           <p className="text-xs text-slate-500">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="text-right">
-            <p className="text-xs text-slate-500">Wake time</p>
-            {editingWake ? (
-              <input
-                type="time"
-                defaultValue={wakeTime}
-                autoFocus
-                onBlur={e => saveWakeTime(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && saveWakeTime(e.target.value)}
-                className="text-xs bg-slate-800 border border-slate-600 rounded px-1.5 py-0.5 text-white w-20"
-              />
-            ) : (
-              <button onClick={() => setEditingWake(true)} className="text-xs text-slate-300 hover:text-white transition-colors">
-                {wakeTime}
-              </button>
-            )}
-          </div>
-          <a href="/auth/logout" className="text-xs text-slate-600 hover:text-slate-400 transition-colors">Disconnect</a>
-        </div>
+        <a href="/auth/logout" className="text-xs text-slate-600 hover:text-slate-400 transition-colors">Disconnect</a>
       </div>
 
       {/* Tab bar */}

@@ -13,7 +13,7 @@ function fmt12(bedMins) {
   return `${h12}:${String(bm).padStart(2, '0')} ${period}`;
 }
 
-function calcBedtime(sleepNeedMs, wakeTime = '07:00') {
+function calcBedtime(sleepNeedMs, wakeTime = '08:00') {
   if (!sleepNeedMs) return null;
   const [wh, wm] = wakeTime.split(':').map(Number);
   const wakeMins = wh * 60 + wm;
@@ -105,10 +105,11 @@ router.get('/brief', async (req, res) => {
     const token = await getValidToken();
     if (!token) return res.status(401).send('Not authenticated. Connect Whoop first.');
 
-    const [recoveryData, sleepData, cycleData] = await Promise.all([
+    const [recoveryData, sleepData, cycleData, historyData] = await Promise.all([
       whoopGet('/v2/recovery?limit=1', token),
       whoopGet('/v2/activity/sleep?limit=1', token),
       whoopGet('/v1/cycle?limit=2', token),
+      whoopGet('/v2/recovery?limit=14', token),
     ]);
 
     const recovery = recoveryData.records?.[0];
@@ -124,6 +125,12 @@ router.get('/brief', async (req, res) => {
     const strainTarget  = (recoveryScore * 0.21).toFixed(1);
     const bedTime       = calcBedtime(sleep?.score?.sleep_needed?.baseline_milli);
 
+    // 14-day HRV average for context
+    const hrvHistory = historyData.records ?? [];
+    const hrvValues  = hrvHistory.filter(r => r.score?.hrv_rmssd_milli).map(r => Math.round(r.score.hrv_rmssd_milli));
+    const avgHRV     = hrvValues.length ? Math.round(hrvValues.reduce((s, v) => s + v, 0) / hrvValues.length) : null;
+    const hrvDiff    = hrv != null && avgHRV != null ? hrv - avgHRV : null;
+
     let dot, readinessLabel;
     if (recoveryScore >= 67)      { dot = '🟢'; readinessLabel = 'Go hard'; }
     else if (recoveryScore >= 34) { dot = '🟡'; readinessLabel = 'Moderate'; }
@@ -134,11 +141,35 @@ router.get('/brief', async (req, res) => {
     const lines = [
       `${day}`,
       `${dot} Recovery ${recoveryScore}% · ${readinessLabel}`,
-      `❤️ HRV ${hrv ?? '--'}ms · RHR ${rhr ?? '--'}bpm`,
+      `❤️ HRV ${hrv ?? '--'}ms${hrvDiff != null ? ` (${hrvDiff > 0 ? '+' : ''}${hrvDiff} vs avg)` : ''} · RHR ${rhr ?? '--'}bpm`,
       `😴 Sleep ${sleepPerf != null ? Math.round(sleepPerf) + '%' : '--'} · Strain ${strain != null ? strain.toFixed(1) : '--'}`,
       `⚡ Strain Target ${strainTarget}`,
       bedTime ? `🛏 Bed ${bedTime}` : null,
     ].filter(Boolean);
+
+    // AI one-liner coaching note (skip gracefully if no API key)
+    if (process.env.ANTHROPIC_API_KEY) {
+      try {
+        const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+        const msg = await client.messages.create({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 60,
+          messages: [{
+            role: 'user',
+            content: `You are a terse fitness coach. Write ONE sentence of coaching advice (max 15 words) based on:
+Recovery: ${recoveryScore}% (${readinessLabel})
+HRV: ${hrv ?? 'unknown'}ms${hrvDiff != null ? ` (${hrvDiff > 0 ? '+' : ''}${hrvDiff}ms vs 14-day avg)` : ''}
+Sleep: ${sleepPerf != null ? Math.round(sleepPerf) + '%' : 'unknown'}
+Strain target: ${strainTarget}
+One sentence only. Be specific to the numbers. No fluff.`,
+          }],
+        });
+        const coaching = msg.content[0]?.text?.trim();
+        if (coaching) lines.push(`💬 ${coaching}`);
+      } catch (aiErr) {
+        console.error('AI brief error:', aiErr.message);
+      }
+    }
 
     res.type('text/plain').send(lines.join('\n'));
   } catch (err) {
